@@ -1,4 +1,4 @@
-name: JavaFX Win ES2 compilation 
+name: JavaFX 21 Win-ES2 compilation
 
 on:
   workflow_dispatch:
