@@ -1,0 +1,80 @@
+name: JavaFX Win ES2 compilation 
+
+on:
+  workflow_dispatch:
+
+jobs:
+ windows_x64_build:
+    name: Windows x64
+    runs-on: "windows-2022"
+
+    env:
+      BOOT_JDK_VERSION: "19.0.2"
+      BOOT_JDK_FILENAME: "jdk-19.0.2_windows-x64_bin.zip"
+      BOOT_JDK_URL: "https://download.oracle.com/java/19/archive/jdk-19.0.2_windows-x64_bin.zip"
+      ANT_DIR: "apache-ant-1.10.5"
+      ANT_FILENAME: "apache-ant-1.10.5.tar.gz"
+      ANT_URL: "https://archive.apache.org/dist/ant/binaries/apache-ant-1.10.5-bin.tar.gz"
+      VS150COMNTOOLS: "C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise\\VC\\Auxiliary\\Build"
+
+    steps:
+      - name: Checkout the source
+        uses: actions/checkout@v4
+        with:
+          repository: openjdk/jfx
+          path: jfx
+          ref: jfx21
+
+      - name: Download boot JDK
+        run: |
+          mkdir -p "$HOME\bootjdk"
+          & curl -L "$env:BOOT_JDK_URL" -o "$HOME/bootjdk/$env:BOOT_JDK_FILENAME"
+          # FIXME: sha256sum
+          tar -xf "$HOME/bootjdk/$env:BOOT_JDK_FILENAME" -C "$HOME/bootjdk"
+          # FIXME: enable cache for boot JDK
+
+      - name: Restore cygwin packages from cache
+        id: cygwin
+        uses: actions/cache@v2
+        with:
+          path: ~/cygwin/packages
+          key: cygwin-packages-${{ runner.os }}-v1
+
+      - name: Install cygwin
+        run: |
+          New-Item -Force -ItemType directory -Path "$HOME\cygwin"
+          & curl -L "https://www.cygwin.com/setup-x86_64.exe" -o "$HOME/cygwin/setup-x86_64.exe"
+          Start-Process -FilePath "$HOME\cygwin\setup-x86_64.exe" -ArgumentList "--quiet-mode --packages make,zip,unzip --root $HOME\cygwin\cygwin64 --local-package-dir $HOME\cygwin\packages --site http://mirrors.kernel.org/sourceware/cygwin --no-desktop --no-shortcuts --no-startmenu --no-admin" -Wait -NoNewWindow
+
+      - name: Install dependencies
+        run: |
+          mkdir -p "$HOME\build-tools"
+          & curl -L "$env:ANT_URL" -o "$HOME/build-tools/$env:ANT_FILENAME"
+          tar -zxf "$HOME/build-tools/$env:ANT_FILENAME" -C "$HOME/build-tools"
+
+      - name: Setup environment
+        run: |
+          dir "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC"
+          dir "$env:VS150COMNTOOLS"
+
+          $env:Path = "$HOME\cygwin\cygwin64\bin;$HOME\cygwin\cygwin64\bin;$env:Path" ;
+          $env:JAVA_HOME = "$HOME\bootjdk\jdk-$env:BOOT_JDK_VERSION" ;
+          $env:ANT_HOME = "${HOME}\build-tools\$env:ANT_DIR"
+          $env:Path = "$env:JAVA_HOME\bin;$env:ANT_HOME\bin;$env:Path" ;
+
+          # Save JAVA_HOME, ANT_HOME, and Path (renamed to THE_PATH) in env variables
+          echo "JAVA_HOME=$env:JAVA_HOME" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "ANT_HOME=$env:ANT_HOME" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "THE_PATH=$env:Path" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Build JavaFX artifacts
+        working-directory: jfx
+        run: |
+          $env:Path = "$env:THE_PATH" ;
+          .\gradlew.bat
+
+      - name: "Upload libraries"
+        uses: actions/upload-artifact@v2
+        with:
+          name: Upload
+          path: ./jfx/build/publications/javafx.graphics-win.jar
