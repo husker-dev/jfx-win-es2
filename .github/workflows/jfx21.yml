@@ -26,7 +26,7 @@ jobs:
           ref: jfx21
 
       - name: Enabling ES2 pipeline
-        run: powershell -Command "(gc jfx/build.gradle) -replace ', IS_WINDOWS ? ', ', true ' | Out-File -encoding ASCII jfx/build.gradle"
+        run: powershell -Command "(gc jfx/build.gradle) -replace ', IS_WINDOWS ? ', ', false ' | Out-File -encoding ASCII jfx/build.gradle"
 
       - name: Download boot JDK
         run: |
