@@ -73,6 +73,18 @@ jobs:
           $env:Path = "$env:THE_PATH" ;
           .\gradlew.bat
 
+      - name: "Importing GPG key"
+        run: |
+          sudo echo ${{ secrets.GPG_PASSPHRASE }} | gpg --batch --yes --passphrase-fd 0 secring.gpg
+
+      - name: "Publishing"
+        env:
+          ORG_GRADLE_PROJECT_ossrhUsername: ${{ secrets.SONATYPE_USERNAME }}
+          ORG_GRADLE_PROJECT_ossrhPassword: ${{ secrets.SONATYPE_PASSWORD }}
+        run: |
+          chmod +x ./gradlew
+          ./gradlew publish closeAndReleaseRepository -Dorg.gradle.project.signing.password=${{ secrets.GPG_PASSPHRASE }}
+
       - name: "Upload libraries"
         uses: actions/upload-artifact@v2
         with:
