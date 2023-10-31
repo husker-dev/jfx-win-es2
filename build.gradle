@@ -1,0 +1,9 @@
+plugins {
+    id "maven"
+}
+
+group = "com.huskerdev"
+
+repositories {
+    mavenCentral()
+}
