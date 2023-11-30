@@ -80,4 +80,4 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: Upload
-          path: ./jfx/build/publications/javafx.graphics-win.jar
+          path: ./jfx/build/publications
